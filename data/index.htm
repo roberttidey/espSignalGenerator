@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!--Import Google Icon Font-->
+		<link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+		<!--Import materialize.css-->
+		<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css" media="screen,projection" />
+
+		<!--Let browser know website is optimized for mobile-->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+		<meta charset="utf-8"/>
+		<title>Esp Signal Generator</title>
+	</head>
+
+	<body>
+		<header>
+			<div class="awTitle">Esp Signal Generator</div>
+		</header>
+		<div class="container" id="events">
+			<div class = "row">
+				<div class = "col s12">
+					<ul class = "tabs">
+						<li class = "tab col s3"><a class = "active" href = "#main">Main</a></li>
+						<li class = "tab col s3"><a href = "#files">Files</a></li>
+					</ul>
+				</div>
+				<div id="main" class="tab col s12" style="overflow-y:auto;">
+					<div class="row">
+						<div id="freqs" class="input-field col s3">
+						  <input value="1000" id="freq" type="text">
+						  <label class="active" for="freq">Target Frequency (Hz)</label>
+						</div>
+					</div>
+					<div class="row">
+						<div id="amplitudes" class="input-field col s6">
+						  <input type="range" id="amplitude" min="0" max="127" value ="64" />
+						  <label class="active" for="amplitude">Amplitude</label>
+						</div>
+					</div>
+					<div class="row">
+						<div id="attenuates" class="input-field col s6">
+						  <input type="radio" name="attenuate" value="768" id="dB0" checked> 
+						  <label for="dB0">0 dB</label>
+						  <input type="radio" name="attenuate" value="512" id="dB1">
+						  <label for="dB1">-20.6 dB</label>
+						  <input type="radio" name="attenuate" value="256" id="dB2"> 
+						  <label for="dB2">-26.5 dB</label>
+						  <input type="radio" name="attenuate" value="0" id="dB3">
+						  <label for="dB3">-41.9 dB</label>
+						</div>
+					</div>
+					<div class="row">
+						<div id="modes" class="input-field col s6">
+						  <input type="radio" name="mode" value="0" id="mode0"> 
+						  <label for="mode0">Off</label>
+						  <input type="radio" name="mode" value="1" id="mode1" checked>
+						  <label for="mode1">Sine</label>
+						  <input type="radio" name="mode" value="2" id="mode2"> 
+						  <label for="mode2">Squ1</label>
+						  <input type="radio" name="mode" value="3" id="mode3">
+						  <label for="mode3">Squ2</label>
+						  <input type="radio" name="mode" value="4" id="mode4">
+						  <label for="mode4">Tri</label>
+						</div>
+					</div>
+					<div class="row">
+						<div class="input-field col s6">
+						  <input disabled value="906.5" id="Vpp" type="text">
+						  <label class="active" for="Vpp">Vpp mV estimated</label>
+						</div>
+					</div>
+					<div class="row">
+						<div class="input-field col s6">
+						  <input disabled value="320.5" id="Vrms" type="text">
+						  <label class="active" for="Vrms">Vrms mV estimated</label>
+						</div>
+					</div>
+				</div>
+				<div id="files" class="tab col s12" style="overflow-y:auto;">
+					<BR>
+					<div id = "dataTable" class = "tab col s12"></div>
+				</div>
+			</div>
+		</div>
+		<style type="text/css">
+			.btn_grid {
+				margin: 3px 0;
+			}
+			.btn {
+				height: 28px;
+				line-height: 28px;
+			}
+			.awTitle {
+				display:inline-block;
+				font-size: x-large;
+				padding-left:20px;
+				width:200px;
+			}
+			header {
+				position:absolute;
+				top:0px;
+				left:0px;
+				height:32px;
+				right:0px;
+				overflow:hidden;
+				background:red;
+				color:white;
+			}
+			td {
+				height:32px;
+				width:200px;
+				padding:0px;
+			}
+			.container {
+				position:absolute;
+				top:32px;
+				bottom:0px;
+				left:10px;
+				right:60px;
+				overflow-y:auto;
+				overflow-x:hidden;
+			}
+			.container .header {
+				background-color:#d3d3d3;
+				padding: 2px;
+				cursor: pointer;
+				font-weight: bold;
+			}
+			.container .content {
+				display: none;
+				padding : 5px;
+			}
+			.tab {
+				overflow-x:hidden;
+			}
+			.dropdown-content {
+				max-height: 350px !important;
+				overflow-y: auto !important;
+				backface-visibility: hidden !important;
+			}
+			.select-wrapper ul {
+				overflow: auto;
+			}
+			#actualCk {
+				 color: red;
+			}
+			#ckError {
+				 color: red;
+			}
+		</style>
+	
+		<!--Import jQuery before materialize.js-->
+		<script type="text/javascript" src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+		<script src="http://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/js/materialize.min.js"></script>
+		<script type="text/javascript">(function($){
+$(function(){
+	var host = window.location.hostname;
+	var pulseFile = "";
+	var pulseFileList;
+	var dataTitles = 'Filename,PlayFile';
+	var modeIndex = 1;
+	var attenuateIndex = 0;
+	var sliderValue = 64;
+	const AttenuationVal = [0.00803, 0.04752,0.09353,  1.0];
+	const VppByMode = [0.0, 1813.0, 10000.0, 10000.0,  1813.0];
+	const VrmsByMode = [0.0, 641.0, 5000.0, 5000.0,  523.4];
+
+	// ******************************************************************
+	// init()
+	// ******************************************************************
+	function init() {
+		loadDataFiles();
+	}
+
+	function loadDataFiles() {
+		// Load Data files
+		$.get("http://" + host + "/getdatafiles", function(data) {
+			var dataTable_html = '<table id="dataFiles"><thead><tr>';
+			var i;
+			var dataFields = [];
+			dataFields = dataTitles.split(",");
+			for(i=0; i< dataFields.length; i++) dataTable_html += '<th>' + dataFields[i] + '</th>';
+			dataTable_html += '</thead></tr><tbody>';
+			if(data.length) {
+				dataFields = data.split("<BR>");
+				for(i=0; i < dataFields.length; i++) {
+					if(dataFields[i] != "") {
+						dataTable_html += '<tr><td><a href="http://' + host + '/' + dataFields[i] + '">' + dataFields[i] + '</a></td>';
+						dataTable_html += '<td><a class="btn green" id="playfile" name="' + dataFields[i] + '" style="width:10px;height:10px"></a></td></tr>';
+					}
+				}
+			}
+			dataTable_html += '</table>';
+			$('#dataTable').html(dataTable_html);
+		});
+	}
+		
+	// ******************************************************************
+	// Actions
+	// ******************************************************************	
+	function setVest() {
+		document.getElementById('Vpp').value = (VppByMode[modeIndex] * sliderValue/127 * AttenuationVal[attenuateIndex]).toFixed(3);
+		document.getElementById('Vrms').value = (VrmsByMode[modeIndex] * sliderValue/127 * AttenuationVal[attenuateIndex]).toFixed(3);
+	}
+	
+	function setFreq(mode) {
+		var freq = document.getElementById('freq').value;
+		$.get("http://" + host + "/setfreq", {'freq':freq});
+	}
+
+	function setMode() {
+		const modes = document.querySelectorAll('input[name="mode"]');
+		var modeValue;
+		for (const mode of modes) {
+			if (mode.checked) {
+				modeValue = mode.value;
+				break;
+			}
+		}
+		modeIndex = modeValue;
+		setVest();
+		if(modeValue == 0) modeValue = -1;
+		$.get("http://" + host + "/setmode", {'mode':modeValue});
+	}
+
+	function setAmplitude() {
+		const attenuates = document.querySelectorAll('input[name="attenuate"]');
+		var attenuateValue;
+		sliderValue = parseInt(document.getElementById('amplitude').value);
+		for (const attenuate of attenuates) {
+			if (attenuate.checked) {
+				attenuateValue = attenuate.value;
+				break;
+			}
+		}
+		attenuateValue = parseInt(attenuateValue);
+		attenuateIndex = attenuateValue / 256;
+		setVest();
+		attenuateValue = attenuateValue + sliderValue;
+		if(attenuateValue == 0) attenuateValue = -1;
+		$.get("http://" + host + "/setamplitude", {'amplitude':attenuateValue});
+	}
+	
+	$("#freqs").on("input", function() {
+		setFreq();
+	});
+
+	$("#modes").on("change", function() {
+		setMode();
+	});
+
+	$("#amplitudes").on("change", function() {
+		setAmplitude();
+	});
+
+	$("#attenuates").on("change", function() {
+		setAmplitude();
+	});
+
+	$("#files").on("click", "#playfile", function() {
+		var btn = $(this);
+		$.get("http://" + host + "/playdatafile", {'playfile':btn["0"].name});
+	});
+	
+	$(".header").click(function () {
+		$header = $(this);
+		//getting the next element
+		$content = $header.next();
+		
+		$content.toggle();
+	});
+	// ******************************************************************
+	// main
+	// ******************************************************************
+	init();
+	
+}); // end of document ready
+})(jQuery); // end of jQuery name space</script>
+	</body>
+</html>
