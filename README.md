@@ -1,4 +1,4 @@
-# espI2sClockGen
+# espSignalGenerator
 A signal generator using AD9833 and esp8266
 
 ## Features
